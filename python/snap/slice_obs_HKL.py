@@ -225,19 +225,19 @@ def homology_of_cyclic_branched_cover(knot_exterior, p):
     return [d for d in C.homology().elementary_divisors() if d != 0]
 
 
-def primes_appearing(knot_exterior, p):
+def get_nonzero_divisor_product(knot_exterior, p):
     """
        sage: M = Manifold('K12n731')
-       sage: primes_appearing(M, 3)
-       [2, 13]
+       sage: get_nonzero_divisor_product(M, 3)
+       (some product of 2's and 13's)
     """
     C = knot_exterior.covers(p, cover_type='cyclic')[0]
     divisors = C.homology().elementary_divisors()
-    primes = set()
+    value = 1
     for d in divisors:
         if d != 0:
-            primes.update([p for p, e in ZZ(d).factor()])
-    return sorted(primes)
+            value = value*d
+    return value
 
 
 def cyclic_rep(group, matrix_of_rep):
@@ -562,12 +562,12 @@ def slice_obstruction_HKL(self, primes_spec,
     The test looks at the cyclic branched covers of the knot of prime
     order p and the F_q homology thereof where q is an odd prime. The
     range of such (p, q) pairs searched is given by primes_spec as a
-    list of (p_max, [q_min, q_max]).  It returns the pair (p, q) of
+    list of ([p_min, p_max], [q_min, q_max]).  It returns the pair (p, q) of
     the first nonzero obstruction found (in which case K is not
     slice), and otherwise returns None::
 
        sage: M = Manifold('K12n813')
-       sage: spec = [(10, [0, 20]), (20, [0, 10])]
+       sage: spec = [([0, 10], [0, 20]), ([11, 20], [0, 10])]
        sage: M.slice_obstruction_HKL(spec, verbose=True)
           Looking at (2, 3) ...
           Looking at (3, 2) ...
@@ -610,16 +610,17 @@ def slice_obstruction_HKL(self, primes_spec,
                 return None
 
     # Main case
-    primes_spec = sorted(primes_spec)
-    p_max = primes_spec[-1][0]
-    for p in prime_range(1, p_max + 1):
-        q_min, q_max = [q for a, q in primes_spec if p <= a][0]
-        for q in primes_appearing(M, p):
-            if q_min <= q <= q_max:
-                if verbose:
-                    print('   Looking at', (p, q), '...')
-                if slicing_is_obstructed(M, p, q):
-                    return (p, q)
+    for ranges in primes_spec:
+        p_min, p_max = ranges[0]
+        q_min, q_max = ranges[1]
+        for p in prime_range(p_min, p_max+1):
+            ndp = get_nonzero_divisor_product(M, p)
+            for q in prime_range(q_min, q_max+1):
+                if (ndp % q) == 0:
+                    if verbose:
+                        print('   Looking at', (p, q), '...')
+                    if slicing_is_obstructed(M, p, q):
+                        return (p, q)
 
 if __name__ == '__main__':
     import doctest
